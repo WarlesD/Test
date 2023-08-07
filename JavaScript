@@ -1,0 +1,74 @@
+require(["baja!",
+         "baja!control:NumericWritable",
+         "jquery",
+         "https://www.gstatic.com/charts/loader.js"], function (
+         baja,
+         types,
+         $) {
+  'use strict';
+
+  google.charts.load('current', { packages: ['corechart'] });
+  google.charts.setOnLoadCallback(initChart);
+
+  function initChart() {
+    var data = google.visualization.arrayToDataTable([
+      ['Data Point', 'Value'],
+      ['Data', 0]
+    ]);
+
+    var options = {
+      title: 'Chart Title',
+      height: 400,
+      bars: 'vertical',
+      vAxis: {
+        minValue: 0,
+        maxValue: 5 // Set the maximum value of the vertical axis (max bar) to 5
+      },
+    };
+
+    var chart = new google.visualization.ColumnChart(document.getElementById('chartContainer'));
+
+    function updateChart() {
+      // Replace the following line with the correct path to your NumericWritable point
+      var pointPath = "station:|slot:/BajaScriptExamples/Components/Batch/NumericWritable1";
+      baja.Ord.make(pointPath).get()
+        .then(function (point) {
+          var newValue = parseFloat(point.getOutDisplay());
+          smoothUpdateValue(data, 0, 1, newValue, 1000); // Smoothly update the chart data
+        })
+        .catch(function (error) {
+          console.error('Error fetching data:', error);
+        });
+    }
+
+    // Function to smoothly update the chart data
+    function smoothUpdateValue(dataTable, row, col, newValue, duration) {
+      var start = dataTable.getValue(row, col);
+      var currentTime = 0;
+      var interval = 20; // Update the chart every 20 milliseconds
+      var steps = Math.floor(duration / interval);
+      var increment = (newValue - start) / steps;
+
+      function update() {
+        currentTime += interval;
+        if (currentTime < duration) {
+          var updatedValue = start + (increment * currentTime) / duration;
+          dataTable.setValue(row, col, updatedValue);
+          chart.draw(dataTable, options);
+          window.requestAnimationFrame(update);
+        } else {
+          dataTable.setValue(row, col, newValue);
+          chart.draw(dataTable, options);
+        }
+      }
+
+      update();
+    }
+
+    // Fetch initial data and draw the chart
+    updateChart();
+
+    // Poll for data changes every 5 seconds (adjust the interval as needed)
+    setInterval(updateChart, 5000);
+  }
+});
